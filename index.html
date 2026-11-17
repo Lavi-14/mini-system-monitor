@@ -310,6 +310,7 @@
                 </tr>
             </thead>
             <tbody id="process-list">
+                <!-- Dynamically populated -->
             </tbody>
         </table>
     </div>
@@ -322,4 +323,159 @@
 
         let processes = [
             { pid: 1, name: "systemd / init", state: "Running", nice: -20, cpu: 1.2, mem: 45 },
-            { pid: 104, name: "kernel_task",
+            { pid: 104, name: "kernel_task", state: "Running", nice: -10, cpu: 3.5, mem: 120 },
+            { pid: 342, name: "chrome_browser", state: "Running", nice: 0, cpu: 14.8, mem: 850 },
+            { pid: 489, name: "code_editor", state: "Running", nice: 0, cpu: 5.2, mem: 420 },
+            { pid: 612, name: "terminal_shell", state: "Sleeping", nice: 0, cpu: 0.1, mem: 35 },
+            { pid: 820, name: "audio_driver", state: "Blocked", nice: -5, cpu: 0.8, mem: 60 }
+        ];
+
+        let nextPid = 1000;
+
+        function updateUptime() {
+            uptimeSeconds++;
+            let hrs = String(Math.floor(uptimeSeconds / 3600)).padStart(2, '0');
+            let mins = String(Math.floor((uptimeSeconds % 3600) / 60)).padStart(2, '0');
+            let secs = String(uptimeSeconds % 60).padStart(2, '0');
+            document.getElementById('uptime').innerText = `Uptime: ${hrs}:${mins}:${secs}`;
+        }
+
+        function renderProcesses() {
+            const tbody = document.getElementById('process-list');
+            tbody.innerHTML = '';
+
+            let totalCpu = 0;
+            let totalMem = 0;
+
+            processes.forEach(p => {
+                totalCpu += p.cpu;
+                totalMem += p.mem;
+
+                let stateClass = 'status-sleeping';
+                if (p.state === 'Running') stateClass = 'status-running';
+                if (p.state === 'Blocked') stateClass = 'status-blocked';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${p.pid}</strong></td>
+                    <td>${p.name}</td>
+                    <td class="${stateClass}">● ${p.state}</td>
+                    <td>${p.nice}</td>
+                    <td>${p.cpu.toFixed(1)}%</td>
+                    <td>${p.mem} MB</td>
+                    <td>
+                        <button class="btn-danger" onclick="killProcess(${p.pid})">Kill (SIGKILL)</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update stats
+            let finalCpu = Math.min(100, Math.round(totalCpu + Math.random() * 4));
+            document.getElementById('cpu-val').innerText = `${finalCpu}%`;
+            document.getElementById('cpu-bar').style.width = `${finalCpu}%`;
+
+            cpuHistory.push(finalCpu);
+            cpuHistory.shift();
+            drawChart();
+
+            let ramPercent = Math.min(100, Math.round((totalMem / 8192) * 100) + 15);
+            let ramGb = ((totalMem / 1024) + 1.2).toFixed(1);
+            document.getElementById('ram-val').innerText = `${ramPercent}%`;
+            document.getElementById('ram-bar').style.width = `${ramPercent}%`;
+            document.getElementById('ram-breakdown').innerText = `${ramGb} / 8.0 GB`;
+
+            document.getElementById('process-count').innerText = `${processes.length} Active`;
+            ctxSwitches += Math.floor(Math.random() * 50 - 25);
+            document.getElementById('ctx-switches').innerText = `${ctxSwitches.toLocaleString()} / sec`;
+        }
+
+        function drawChart() {
+            const canvas = document.getElementById('cpu-chart');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.offsetWidth;
+            const h = canvas.height = canvas.offsetHeight;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.strokeStyle = '#58a6ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const step = w / (cpuHistory.length - 1);
+            cpuHistory.forEach((val, i) => {
+                const y = h - (val / 100 * h);
+                if (i === 0) ctx.moveTo(0, y);
+                else ctx.lineTo(i * step, y);
+            });
+
+            ctx.stroke();
+
+            // Gradient fill
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.fillStyle = 'rgba(88, 166, 255, 0.15)';
+            ctx.fill();
+        }
+
+        function simulateFluctuation() {
+            if (!running) return;
+
+            processes.forEach(p => {
+                if (p.state === 'Running') {
+                    p.cpu = Math.max(0.2, +(p.cpu + (Math.random() * 3 - 1.5)).toFixed(1));
+                }
+            });
+
+            renderProcesses();
+        }
+
+        function killProcess(pid) {
+            processes = processes.filter(p => p.pid !== pid);
+            renderProcesses();
+        }
+
+        function spawnProcess() {
+            const names = ['python_script', 'compiler_gcc', 'node_worker', 'database_daemon', 'backup_sync'];
+            const randomName = names[Math.floor(Math.random() * names.length)];
+            processes.push({
+                pid: nextPid++,
+                name: randomName,
+                state: 'Running',
+                nice: 0,
+                cpu: +(Math.random() * 8 + 2).toFixed(1),
+                mem: Math.floor(Math.random() * 200 + 50)
+            });
+            renderProcesses();
+        }
+
+        function toggleSimulation() {
+            running = !running;
+            document.getElementById('pause-btn').innerText = running ? '⏸️ Pause Simulation' : '▶️ Resume Simulation';
+        }
+
+        function triggerStressTest() {
+            processes.forEach(p => {
+                if (p.state === 'Running') p.cpu += 15;
+            });
+            renderProcesses();
+        }
+
+        function resetProcesses() {
+            processes = [
+                { pid: 1, name: "systemd / init", state: "Running", nice: -20, cpu: 1.2, mem: 45 },
+                { pid: 104, name: "kernel_task", state: "Running", nice: -10, cpu: 3.5, mem: 120 },
+                { pid: 342, name: "chrome_browser", state: "Running", nice: 0, cpu: 14.8, mem: 850 },
+                { pid: 489, name: "code_editor", state: "Running", nice: 0, cpu: 5.2, mem: 420 },
+                { pid: 612, name: "terminal_shell", state: "Sleeping", nice: 0, cpu: 0.1, mem: 35 },
+                { pid: 820, name: "audio_driver", state: "Blocked", nice: -5, cpu: 0.8, mem: 60 }
+            ];
+            renderProcesses();
+        }
+
+        setInterval(updateUptime, 1000);
+        setInterval(simulateFluctuation, 1200);
+        window.addEventListener('resize', drawChart);
+        renderProcesses();
+    </script>
+</body>
+</html>
