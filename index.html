@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS Mini System Monitor | Dashboard</title>
+    <style>
+        :root {
+            --bg-base: #0d1117;
+            --bg-card: #161b22;
+            --border: #30363d;
+            --accent-cyan: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            padding: 24px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .header-title h1 {
+            font-size: 24px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge {
+            background-color: rgba(56, 139, 253, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(56, 139, 253, 0.4);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .grid-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .card-header h2 {
+            font-size: 15px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .big-val {
+            font-size: 32px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar-bg {
+            background: #21262d;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--accent-cyan);
+            width: 0%;
+            transition: width 0.6s ease;
+        }
+
+        .sub-stat {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .controls-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #21262d;
+            border: 1px solid var(--border);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #30363d;
+            border-color: #8b949e;
+        }
+
+        button.btn-primary {
+            background: #238636;
+            border-color: rgba(240, 246, 252, 0.1);
+        }
+
+        button.btn-primary:hover {
+            background: #2ea043;
+        }
+
+        button.btn-danger {
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--accent-red);
+            border-color: rgba(248, 81, 73, 0.4);
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+
+        button.btn-danger:hover {
+            background: var(--accent-red);
+            color: #ffffff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #1c2128;
+            color: var(--text-muted);
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .status-running {
+            color: var(--accent-green);
+        }
+
+        .status-sleeping {
+            color: var(--text-muted);
+        }
+
+        .status-blocked {
+            color: var(--accent-orange);
+        }
+
+        .canvas-container {
+            height: 70px;
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <h1>🖥️ OS Mini System Monitor</h1>
+            <span class="badge">Live Kernel Simulation</span>
+        </div>
+        <div class="header-time" id="uptime">Uptime: 00:00:00</div>
+    </header>
+
+    <div class="grid-stats">
+        <!-- CPU CARD -->
+        <div class="card">
+            <div class="card-header">
+                <h2>CPU Utilization</h2>
+                <span id="cpu-cores">4 Cores Active</span>
+            </div>
+            <div class="big-val" id="cpu-val">24%</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="cpu-bar" style="width: 24%;"></div>
+            </div>
+            <div class="canvas-container">
+                <canvas id="cpu-chart"></canvas>
+            </div>
+            <div class="sub-stat">
+                <span>Clock Frequency: 3.20 GHz</span>
+                <span id="thread-count">Threads: 142</span>
+            </div>
+        </div>
+
+        <!-- RAM CARD -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Memory (RAM)</h2>
+                <span id="ram-breakdown">3.8 / 8.0 GB</span>
+            </div>
+            <div class="big-val" id="ram-val">48%</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="ram-bar" style="width: 48%; background: var(--accent-green);"></div>
+            </div>
+            <div class="sub-stat" style="margin-top: 24px;">
+                <span>Paging: 4 KB / Page</span>
+                <span>Swap Usage: 8%</span>
+            </div>
+            <div class="sub-stat">
+                <span>Cache Buffers: 1.2 GB</span>
+                <span>Free: 4.2 GB</span>
+            </div>
+        </div>
+
+        <!-- OS KERNEL CARD -->
+        <div class="card">
+            <div class="card-header">
+                <h2>OS Kernel & Sched</h2>
+                <span>Round Robin</span>
+            </div>
+            <div class="big-val" id="process-count">6 Active</div>
+            <div class="sub-stat" style="margin-top: 20px;">
+                <span>Context Switches:</span>
+                <span id="ctx-switches">1,420 / sec</span>
+            </div>
+            <div class="sub-stat">
+                <span>Quantum Time:</span>
+                <span>10 ms</span>
+            </div>
+            <div class="sub-stat">
+                <span>Scheduler Policy:</span>
+                <span>Preemptive Multitasking</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="controls-bar">
+        <button class="btn-primary" onclick="spawnProcess()">➕ Spawn New Process (fork)</button>
+        <button onclick="toggleSimulation()" id="pause-btn">⏸️ Pause Simulation</button>
+        <button onclick="triggerStressTest()">🔥 Stress CPU Test</button>
+        <button onclick="resetProcesses()">🔄 Reset Defaults</button>
+    </div>
+
+    <!-- PROCESS TABLE -->
+    <div class="card">
+        <div class="card-header">
+            <h2>Process Table (Task Manager)</h2>
+            <span style="font-size: 12px; color: var(--text-muted);">Signals: SIGKILL, SIGSTOP</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>PID</th>
+                    <th>Process Name</th>
+                    <th>State</th>
+                    <th>Priority (Nice)</th>
+                    <th>CPU %</th>
+                    <th>Memory</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="process-list">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let running = true;
+        let uptimeSeconds = 0;
+        let ctxSwitches = 1420;
+        let cpuHistory = new Array(30).fill(20);
+
+        let processes = [
+            { pid: 1, name: "systemd / init", state: "Running", nice: -20, cpu: 1.2, mem: 45 },
+            { pid: 104, name: "kernel_task",
